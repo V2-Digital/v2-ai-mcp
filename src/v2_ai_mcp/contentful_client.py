@@ -1,9 +1,12 @@
 """Contentful CMS integration for fetching blog posts."""
 
+import logging
 import os
 from typing import Any
 
 import contentful
+
+logger = logging.getLogger(__name__)
 
 
 class ContentfulClient:
@@ -212,7 +215,10 @@ class ContentfulClient:
                             or "Unknown Author"
                         )
                         return str(name)
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(
+                            "Failed to extract author from linked entry: %s", e
+                        )
                         continue
 
                 # Handle list of authors
@@ -229,7 +235,10 @@ class ContentfulClient:
                                 or "Unknown Author"
                             )
                             return str(name)
-                        except Exception:
+                        except Exception as e:
+                            logger.debug(
+                                "Failed to extract author from list entry: %s", e
+                            )
                             continue
                     else:
                         return str(first_author)
