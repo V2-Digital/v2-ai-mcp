@@ -133,7 +133,28 @@ def fetch_blog_post(url: str) -> dict:
 
 def fetch_blog_posts() -> list:
     """
-    For now, just return the specific blog post
+    Fetch blog posts from available sources (V2.ai and/or Contentful)
     """
-    url = "https://www.v2.ai/insights/adopting-AI-assistants-while-balancing-risks"
-    return [fetch_blog_post(url)]
+    import os
+
+    posts = []
+
+    # Try Contentful first if configured
+    if os.getenv("CONTENTFUL_SPACE_ID") and os.getenv("CONTENTFUL_ACCESS_TOKEN"):
+        try:
+            from .contentful_client import fetch_contentful_posts
+
+            contentful_posts = fetch_contentful_posts(
+                content_type=os.getenv("CONTENTFUL_CONTENT_TYPE", "blogPost"), limit=10
+            )
+            posts.extend(contentful_posts)
+        except Exception as e:
+            print(f"Error fetching from Contentful: {e}")
+
+    # Fallback to V2.ai scraping if no Contentful posts or as additional source
+    if not posts:
+        url = "https://www.v2.ai/insights/adopting-AI-assistants-while-balancing-risks"
+        v2ai_post = fetch_blog_post(url)
+        posts.append(v2ai_post)
+
+    return posts

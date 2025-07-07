@@ -73,8 +73,15 @@ uv run pre-commit autoupdate
 # Set OpenAI API key
 export OPENAI_API_KEY="your-api-key-here"
 
+# Set Contentful credentials (optional)
+export CONTENTFUL_SPACE_ID="your-space-id"
+export CONTENTFUL_ACCESS_TOKEN="your-access-token"
+
 # Or create .env file with:
 OPENAI_API_KEY=your-api-key-here
+CONTENTFUL_SPACE_ID=your-contentful-space-id
+CONTENTFUL_ACCESS_TOKEN=your-contentful-access-token
+CONTENTFUL_CONTENT_TYPE=blogPost
 ```
 
 ## Claude Desktop Integration
