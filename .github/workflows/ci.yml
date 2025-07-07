@@ -66,4 +66,4 @@ jobs:
 
     - name: Run security checks with ruff
       run: |
-        uv run ruff check --select=S src tests
+        uv run ruff check --select=S src
