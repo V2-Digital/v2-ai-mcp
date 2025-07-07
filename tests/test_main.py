@@ -12,14 +12,14 @@ from src.v2_ai_mcp.main import (
 
 def test_get_latest_posts():
     """Test the get_latest_posts function."""
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch:
+    with patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch:
         mock_posts = [
             {
                 "title": "Test Post",
                 "author": "Ashley Rodan",
                 "date": "July 3, 2025",
                 "content": "Test content",
-                "url": "https://example.com/test"
+                "url": "https://example.com/test",
             }
         ]
         mock_fetch.return_value = mock_posts
@@ -38,13 +38,14 @@ def test_summarize_post_valid_index():
             "author": "Ashley Rodan",
             "date": "July 3, 2025",
             "content": "This is test content for summarization.",
-            "url": "https://example.com/test"
+            "url": "https://example.com/test",
         }
     ]
 
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch, \
-         patch('src.v2_ai_mcp.main.summarize') as mock_summarize:
-
+    with (
+        patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch,
+        patch("src.v2_ai_mcp.main.summarize") as mock_summarize,
+    ):
         mock_fetch.return_value = mock_posts
         mock_summarize.return_value = "This is a test summary."
 
@@ -55,19 +56,21 @@ def test_summarize_post_valid_index():
             "date": "July 3, 2025",
             "author": "Ashley Rodan",
             "url": "https://example.com/test",
-            "summary": "This is a test summary."
+            "summary": "This is a test summary.",
         }
 
         assert result == expected
         mock_fetch.assert_called_once()
-        mock_summarize.assert_called_once_with("This is test content for summarization.")
+        mock_summarize.assert_called_once_with(
+            "This is test content for summarization."
+        )
 
 
 def test_summarize_post_invalid_index_negative():
     """Test summarize_post with negative index."""
     mock_posts = [{"title": "Test"}]
 
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch:
+    with patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch:
         mock_fetch.return_value = mock_posts
 
         result = _summarize_post(-1)
@@ -79,7 +82,7 @@ def test_summarize_post_invalid_index_too_high():
     """Test summarize_post with index too high."""
     mock_posts = [{"title": "Test"}]
 
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch:
+    with patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch:
         mock_fetch.return_value = mock_posts
 
         result = _summarize_post(1)
@@ -89,7 +92,7 @@ def test_summarize_post_invalid_index_too_high():
 
 def test_summarize_post_empty_posts():
     """Test summarize_post with no posts available."""
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch:
+    with patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch:
         mock_fetch.return_value = []
 
         result = _summarize_post(0)
@@ -105,11 +108,11 @@ def test_get_post_content_valid_index():
             "author": "Ashley Rodan",
             "date": "July 3, 2025",
             "content": "Full content here",
-            "url": "https://example.com/test"
+            "url": "https://example.com/test",
         }
     ]
 
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch:
+    with patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch:
         mock_fetch.return_value = mock_posts
 
         result = _get_post_content(0)
@@ -122,7 +125,7 @@ def test_get_post_content_invalid_index():
     """Test get_post_content with invalid index."""
     mock_posts = [{"title": "Test"}]
 
-    with patch('src.v2_ai_mcp.main.fetch_blog_posts') as mock_fetch:
+    with patch("src.v2_ai_mcp.main.fetch_blog_posts") as mock_fetch:
         mock_fetch.return_value = mock_posts
 
         result = _get_post_content(5)
@@ -133,7 +136,7 @@ def test_get_post_content_invalid_index():
 def test_mcp_server_initialization():
     """Test that MCP server is properly initialized."""
     assert mcp is not None
-    assert hasattr(mcp, 'run')
+    assert hasattr(mcp, "run")
 
 
 def test_tools_are_registered():
@@ -145,4 +148,4 @@ def test_tools_are_registered():
 
     # Test MCP server is initialized
     assert mcp is not None
-    assert hasattr(mcp, 'run')
+    assert hasattr(mcp, "run")

@@ -63,10 +63,26 @@ fail_under = 60
 show_missing = true
 skip_covered = false
 
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # Skip assert_used test
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+explicit_package_bases = true
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "responses>=0.25.7",
     "ruff>=0.12.2",
+    "pre-commit>=4.0.0",
+    "bandit[toml]>=1.7.10",
+    "mypy>=1.13.0",
+    "types-requests>=2.32.0",
 ]

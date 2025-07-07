@@ -39,7 +39,7 @@ A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insight
    ```bash
    export OPENAI_API_KEY="your-api-key-here"
    ```
-   
+
    Or create a `.env` file:
    ```
    OPENAI_API_KEY=your-api-key-here
@@ -75,7 +75,7 @@ uv run pytest tests/ -v --cov=src
 1. **Install Claude Desktop** (if not already installed)
 
 2. **Configure MCP in Claude Desktop:**
-   
+
    Add to your Claude Desktop MCP configuration:
    ```json
    {

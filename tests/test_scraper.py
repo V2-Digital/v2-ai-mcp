@@ -28,7 +28,7 @@ def test_fetch_blog_post_success():
         "https://example.com/test-post",
         body=test_html,
         status=200,
-        content_type="text/html"
+        content_type="text/html",
     )
 
     result = fetch_blog_post("https://example.com/test-post")
@@ -60,7 +60,7 @@ def test_fetch_blog_post_with_date():
         "https://example.com/date-test",
         body=test_html,
         status=200,
-        content_type="text/html"
+        content_type="text/html",
     )
 
     result = fetch_blog_post("https://example.com/date-test")
@@ -73,11 +73,7 @@ def test_fetch_blog_post_with_date():
 @responses.activate
 def test_fetch_blog_post_request_error():
     """Test handling of request errors."""
-    responses.add(
-        responses.GET,
-        "https://example.com/error",
-        status=404
-    )
+    responses.add(responses.GET, "https://example.com/error", status=404)
 
     result = fetch_blog_post("https://example.com/error")
 
@@ -103,7 +99,7 @@ def test_fetch_blog_post_no_content():
         "https://example.com/empty",
         body=test_html,
         status=200,
-        content_type="text/html"
+        content_type="text/html",
     )
 
     result = fetch_blog_post("https://example.com/empty")
@@ -132,7 +128,7 @@ def test_fetch_blog_post_date_cleaning():
         "https://example.com/date-clean",
         body=test_html,
         status=200,
-        content_type="text/html"
+        content_type="text/html",
     )
 
     result = fetch_blog_post("https://example.com/date-clean")
@@ -163,7 +159,7 @@ def test_fetch_blog_post_fallback_content():
         "https://example.com/fallback",
         body=test_html,
         status=200,
-        content_type="text/html"
+        content_type="text/html",
     )
 
     result = fetch_blog_post("https://example.com/fallback")
@@ -182,7 +178,7 @@ def test_fetch_blog_post_various_date_formats():
         ("July 15, 2024", "July 15, 2024"),
         ("15 July 2024", "15 July 2024"),
         ("07/15/2024", "07/15/2024"),
-        ("2024-07-15", "2024-07-15")
+        ("2024-07-15", "2024-07-15"),
     ]
 
     for i, (date_in_html, expected_date) in enumerate(test_cases):
@@ -203,7 +199,7 @@ def test_fetch_blog_post_various_date_formats():
             f"https://example.com/date-test-{i}",
             body=test_html,
             status=200,
-            content_type="text/html"
+            content_type="text/html",
         )
 
         result = fetch_blog_post(f"https://example.com/date-test-{i}")
@@ -212,13 +208,13 @@ def test_fetch_blog_post_various_date_formats():
 
 def test_fetch_blog_posts():
     """Test the main fetch_blog_posts function."""
-    with patch('src.v2_ai_mcp.scraper.fetch_blog_post') as mock_fetch:
+    with patch("src.v2_ai_mcp.scraper.fetch_blog_post") as mock_fetch:
         mock_fetch.return_value = {
             "title": "Test Post",
             "author": "Ashley Rodan",
             "date": "July 3, 2025",
             "content": "Test content",
-            "url": "https://www.v2.ai/insights/adopting-AI-assistants-while-balancing-risks"
+            "url": "https://www.v2.ai/insights/adopting-AI-assistants-while-balancing-risks",
         }
 
         result = fetch_blog_posts()

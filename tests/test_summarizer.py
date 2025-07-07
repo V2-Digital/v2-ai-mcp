@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from src.v2_ai_mcp.summarizer import summarize
 
 
-@patch('src.v2_ai_mcp.summarizer.OpenAI')
+@patch("src.v2_ai_mcp.summarizer.OpenAI")
 def test_summarize_success(mock_openai):
     """Test successful text summarization."""
     # Mock the OpenAI client and response
@@ -35,7 +35,7 @@ def test_summarize_success(mock_openai):
     assert "summarize this blog post" in call_args[1]["messages"][1]["content"].lower()
 
 
-@patch('src.v2_ai_mcp.summarizer.OpenAI')
+@patch("src.v2_ai_mcp.summarizer.OpenAI")
 def test_summarize_api_error(mock_openai):
     """Test handling of OpenAI API errors."""
     mock_client = MagicMock()
@@ -49,8 +49,8 @@ def test_summarize_api_error(mock_openai):
     assert result == "Error generating summary: API Error"
 
 
-@patch('src.v2_ai_mcp.summarizer.os.getenv')
-@patch('src.v2_ai_mcp.summarizer.OpenAI')
+@patch("src.v2_ai_mcp.summarizer.os.getenv")
+@patch("src.v2_ai_mcp.summarizer.OpenAI")
 def test_summarize_with_api_key(mock_openai, mock_getenv):
     """Test that API key is properly retrieved from environment."""
     mock_getenv.return_value = "test-api-key"
@@ -69,7 +69,7 @@ def test_summarize_with_api_key(mock_openai, mock_getenv):
     assert result == "Summary result."
 
 
-@patch('src.v2_ai_mcp.summarizer.OpenAI')
+@patch("src.v2_ai_mcp.summarizer.OpenAI")
 def test_summarize_empty_content(mock_openai):
     """Test summarizing empty content."""
     mock_client = MagicMock()

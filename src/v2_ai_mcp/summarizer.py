@@ -15,18 +15,18 @@ def summarize(text: str) -> str:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant that summarizes blog posts. Provide a concise summary that captures the main points and key insights."
+                    "content": "You are a helpful assistant that summarizes blog posts. Provide a concise summary that captures the main points and key insights.",
                 },
                 {
                     "role": "user",
-                    "content": f"Please summarize this blog post:\n\n{text}"
-                }
+                    "content": f"Please summarize this blog post:\n\n{text}",
+                },
             ],
             max_tokens=500,
-            temperature=0.3
+            temperature=0.3,
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].message.content or "No content returned"
 
     except Exception as e:
         return f"Error generating summary: {str(e)}"
