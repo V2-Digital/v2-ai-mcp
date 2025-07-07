@@ -152,6 +152,7 @@ def fetch_blog_posts() -> list:
     return [fetch_blog_post(url) for url in urls]
 ```
 
+
 ### Improving Content Extraction
 
 The scraper uses multiple fallback strategies for extracting content. You can enhance it by:
