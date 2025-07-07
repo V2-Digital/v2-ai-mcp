@@ -1,5 +1,6 @@
-from openai import OpenAI
 import os
+
+from openai import OpenAI
 
 
 def summarize(text: str) -> str:
@@ -8,7 +9,7 @@ def summarize(text: str) -> str:
     """
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
@@ -24,8 +25,8 @@ def summarize(text: str) -> str:
             max_tokens=500,
             temperature=0.3
         )
-        
+
         return response.choices[0].message.content
-        
+
     except Exception as e:
         return f"Error generating summary: {str(e)}"

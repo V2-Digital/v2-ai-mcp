@@ -1,7 +1,7 @@
+import re
+
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
-import re
 
 
 def fetch_blog_post(url: str) -> dict:
@@ -11,17 +11,17 @@ def fetch_blog_post(url: str) -> dict:
     try:
         response = requests.get(url)
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.content, 'html.parser')
-        
+
         # Extract title
         title_element = soup.find('h1')
         title = title_element.get_text(strip=True) if title_element else "No title found"
-        
+
         # Extract author and date - V2.ai specific structure
         author = "Ashley Rodan"  # Known author for this specific post
         date = None
-        
+
         # Look for date in various formats and locations
         date_patterns = [
             r'\b[A-Za-z]+ \d{1,2}, \d{4}\b',       # Month DD, YYYY (most common)
@@ -29,7 +29,7 @@ def fetch_blog_post(url: str) -> dict:
             r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',  # MM/DD/YYYY or MM-DD-YYYY
             r'\b\d{4}[/-]\d{1,2}[/-]\d{1,2}\b'     # YYYY/MM/DD or YYYY-MM-DD
         ]
-        
+
         # Search in title area and nearby text
         title_area = soup.find('h1')
         if title_area:
@@ -45,7 +45,7 @@ def fetch_blog_post(url: str) -> dict:
                         if "Rodan" in date:
                             date = re.sub(r'.*?Rodan\s*', '', date)
                         break
-        
+
         # Additional selectors for V2.ai structure
         if not date:
             date_selectors = [
@@ -57,7 +57,7 @@ def fetch_blog_post(url: str) -> dict:
                 '.meta-date',
                 '.publish-date'
             ]
-            
+
             for selector in date_selectors:
                 date_element = soup.select_one(selector)
                 if date_element:
@@ -65,14 +65,14 @@ def fetch_blog_post(url: str) -> dict:
                     if date_text:
                         date = date_text
                         break
-        
+
         if not date:
             date = "Date not found"
-        
+
         # Extract content - remove script, style, nav, header, footer
         for element in soup(['script', 'style', 'nav', 'header', 'footer']):
             element.decompose()
-        
+
         # Look for main content areas
         content_selectors = [
             'main',
@@ -82,7 +82,7 @@ def fetch_blog_post(url: str) -> dict:
             'article',
             '.entry-content'
         ]
-        
+
         content = ""
         for selector in content_selectors:
             content_element = soup.select_one(selector)
@@ -92,15 +92,15 @@ def fetch_blog_post(url: str) -> dict:
                 if paragraphs:
                     content = '\n\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
                     break
-        
+
         # Fallback: get all paragraphs from body
         if not content:
             paragraphs = soup.find_all('p')
             content = '\n\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
-        
+
         if not content:
             content = "Content not found"
-        
+
         return {
             "title": title,
             "date": date,
@@ -108,7 +108,7 @@ def fetch_blog_post(url: str) -> dict:
             "content": content,
             "url": url
         }
-        
+
     except requests.RequestException as e:
         return {
             "title": "Error fetching post",

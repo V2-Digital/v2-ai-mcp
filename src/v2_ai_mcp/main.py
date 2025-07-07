@@ -1,4 +1,5 @@
 from fastmcp import FastMCP
+
 from .scraper import fetch_blog_posts
 from .summarizer import summarize
 

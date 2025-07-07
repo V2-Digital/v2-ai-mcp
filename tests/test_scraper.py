@@ -1,8 +1,9 @@
 """Unit tests for the scraper module."""
 
-import pytest
-import responses
 from unittest.mock import patch
+
+import responses
+
 from src.v2_ai_mcp.scraper import fetch_blog_post, fetch_blog_posts
 
 
@@ -21,7 +22,7 @@ def test_fetch_blog_post_success():
         </body>
     </html>
     """
-    
+
     responses.add(
         responses.GET,
         "https://example.com/test-post",
@@ -29,9 +30,9 @@ def test_fetch_blog_post_success():
         status=200,
         content_type="text/html"
     )
-    
+
     result = fetch_blog_post("https://example.com/test-post")
-    
+
     assert result["title"] == "Test Blog Post Title"
     assert result["author"] == "Ashley Rodan"  # Hard-coded for V2.ai
     assert result["url"] == "https://example.com/test-post"
@@ -53,7 +54,7 @@ def test_fetch_blog_post_with_date():
         </body>
     </html>
     """
-    
+
     responses.add(
         responses.GET,
         "https://example.com/date-test",
@@ -61,9 +62,9 @@ def test_fetch_blog_post_with_date():
         status=200,
         content_type="text/html"
     )
-    
+
     result = fetch_blog_post("https://example.com/date-test")
-    
+
     assert result["title"] == "Test Post"
     assert result["date"] == "July 15, 2024"
     assert result["author"] == "Ashley Rodan"
@@ -77,9 +78,9 @@ def test_fetch_blog_post_request_error():
         "https://example.com/error",
         status=404
     )
-    
+
     result = fetch_blog_post("https://example.com/error")
-    
+
     assert result["title"] == "Error fetching post"
     assert "Error:" in result["content"]
     assert result["url"] == "https://example.com/error"
@@ -96,7 +97,7 @@ def test_fetch_blog_post_no_content():
         </body>
     </html>
     """
-    
+
     responses.add(
         responses.GET,
         "https://example.com/empty",
@@ -104,9 +105,9 @@ def test_fetch_blog_post_no_content():
         status=200,
         content_type="text/html"
     )
-    
+
     result = fetch_blog_post("https://example.com/empty")
-    
+
     assert result["title"] == "Empty Post"
     assert result["content"] == "Content not found"
 
@@ -125,7 +126,7 @@ def test_fetch_blog_post_date_cleaning():
         </body>
     </html>
     """
-    
+
     responses.add(
         responses.GET,
         "https://example.com/date-clean",
@@ -133,9 +134,9 @@ def test_fetch_blog_post_date_cleaning():
         status=200,
         content_type="text/html"
     )
-    
+
     result = fetch_blog_post("https://example.com/date-clean")
-    
+
     assert result["date"] == "December 25, 2024"
     assert "Rodan" not in result["date"]
 
@@ -156,7 +157,7 @@ def test_fetch_blog_post_fallback_content():
         </body>
     </html>
     """
-    
+
     responses.add(
         responses.GET,
         "https://example.com/fallback",
@@ -164,11 +165,11 @@ def test_fetch_blog_post_fallback_content():
         status=200,
         content_type="text/html"
     )
-    
+
     result = fetch_blog_post("https://example.com/fallback")
-    
+
     assert "First paragraph" in result["content"]
-    assert "Second paragraph" in result["content"] 
+    assert "Second paragraph" in result["content"]
     assert "Third paragraph with content" in result["content"]
     assert "console.log" not in result["content"]
     assert ".hidden" not in result["content"]
@@ -183,7 +184,7 @@ def test_fetch_blog_post_various_date_formats():
         ("07/15/2024", "07/15/2024"),
         ("2024-07-15", "2024-07-15")
     ]
-    
+
     for i, (date_in_html, expected_date) in enumerate(test_cases):
         test_html = f"""
         <html>
@@ -196,7 +197,7 @@ def test_fetch_blog_post_various_date_formats():
             </body>
         </html>
         """
-        
+
         responses.add(
             responses.GET,
             f"https://example.com/date-test-{i}",
@@ -204,7 +205,7 @@ def test_fetch_blog_post_various_date_formats():
             status=200,
             content_type="text/html"
         )
-        
+
         result = fetch_blog_post(f"https://example.com/date-test-{i}")
         assert result["date"] == expected_date
 
@@ -219,9 +220,9 @@ def test_fetch_blog_posts():
             "content": "Test content",
             "url": "https://www.v2.ai/insights/adopting-AI-assistants-while-balancing-risks"
         }
-        
+
         result = fetch_blog_posts()
-        
+
         assert len(result) == 1
         assert result[0]["title"] == "Test Post"
         assert result[0]["author"] == "Ashley Rodan"
