@@ -2,6 +2,9 @@
 
 A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insights, extracts content, and provides AI-powered summaries using OpenAI's GPT-4.
 
+# Example
+![alt text](image.png)
+
 ## Features
 
 - 🔍 **Web Scraping**: Fetches blog posts from V2.ai Insights
