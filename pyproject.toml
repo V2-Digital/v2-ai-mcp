@@ -1,12 +1,91 @@
 [project]
 name = "v2-ai-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "V2.ai Insights Scraper MCP - A Model Context Protocol server for scraping and summarizing V2.ai blog posts"
+authors = [
+    {name = "Ashley Rodan", email = "ashley@example.com"}
+]
 readme = "README.md"
 requires-python = ">=3.12"
+keywords = ["mcp", "web-scraping", "ai", "openai", "v2ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "beautifulsoup4>=4.13.4",
     "fastmcp>=2.10.2",
     "openai>=1.93.0",
     "requests>=2.32.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "responses>=0.25.0",
+    "ruff>=0.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/username/v2-ai-mcp"
+Repository = "https://github.com/username/v2-ai-mcp"
+Issues = "https://github.com/username/v2-ai-mcp/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # Allow asserts in tests
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=src --cov-report=html --cov-report=term-missing --cov-fail-under=60"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true
+skip_covered = false
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # Skip assert_used test
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+explicit_package_bases = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "responses>=0.25.7",
+    "ruff>=0.12.2",
+    "pre-commit>=4.0.0",
+    "bandit[toml]>=1.7.10",
+    "mypy>=1.13.0",
+    "types-requests>=2.32.0",
 ]

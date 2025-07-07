@@ -39,7 +39,7 @@ A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insight
    ```bash
    export OPENAI_API_KEY="your-api-key-here"
    ```
-   
+
    Or create a `.env` file:
    ```
    OPENAI_API_KEY=your-api-key-here
@@ -48,7 +48,7 @@ A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insight
 ### Running the Server
 
 ```bash
-uv run python main.py
+uv run python -m src.v2_ai_mcp.main
 ```
 
 The server will start and be available for MCP connections.
@@ -59,10 +59,13 @@ Test individual components:
 
 ```bash
 # Test scraper
-uv run python -c "from scraper import fetch_blog_posts; print(fetch_blog_posts()[0]['title'])"
+uv run python -c "from src.v2_ai_mcp.scraper import fetch_blog_posts; print(fetch_blog_posts()[0]['title'])"
 
 # Test with summarizer (requires OpenAI API key)
-uv run python -c "from scraper import fetch_blog_posts; from summarizer import summarize; post = fetch_blog_posts()[0]; print(summarize(post['content'][:1000]))"
+uv run python -c "from src.v2_ai_mcp.scraper import fetch_blog_posts; from src.v2_ai_mcp.summarizer import summarize; post = fetch_blog_posts()[0]; print(summarize(post['content'][:1000]))"
+
+# Run unit tests
+uv run pytest tests/ -v --cov=src
 ```
 
 ## Claude Desktop Integration
@@ -72,14 +75,14 @@ uv run python -c "from scraper import fetch_blog_posts; from summarizer import s
 1. **Install Claude Desktop** (if not already installed)
 
 2. **Configure MCP in Claude Desktop:**
-   
+
    Add to your Claude Desktop MCP configuration:
    ```json
    {
      "mcpServers": {
        "v2-insights-scraper": {
          "command": "/path/to/uv",
-         "args": ["run", "--directory", "/path/to/your/v2-ai-mcp", "python", "main.py"],
+         "args": ["run", "--directory", "/path/to/your/v2-ai-mcp", "python", "-m", "src.v2_ai_mcp.main"],
          "env": {
            "OPENAI_API_KEY": "your-api-key-here"
          }
@@ -102,12 +105,23 @@ Once configured, you can use these tools in Claude Desktop:
 
 ```
 v2-ai-mcp/
-├── main.py          # FastMCP server with tool definitions
-├── scraper.py       # Web scraping logic
-├── summarizer.py    # OpenAI GPT-4 integration
-├── pyproject.toml   # Project dependencies
-├── .env.example     # Environment variables template
-└── README.md        # This file
+├── src/
+│   └── v2_ai_mcp/
+│       ├── __init__.py      # Package initialization
+│       ├── main.py          # FastMCP server with tool definitions
+│       ├── scraper.py       # Web scraping logic
+│       └── summarizer.py    # OpenAI GPT-4 integration
+├── tests/
+│   ├── __init__.py          # Test package initialization
+│   ├── test_scraper.py      # Unit tests for scraper
+│   └── test_summarizer.py   # Unit tests for summarizer
+├── .github/
+│   └── workflows/
+│       └── ci.yml           # GitHub Actions CI/CD pipeline
+├── pyproject.toml           # Project dependencies and config
+├── .env.example             # Environment variables template
+├── .gitignore               # Git ignore patterns
+└── README.md                # This file
 ```
 
 ## Current Implementation
@@ -138,6 +152,7 @@ def fetch_blog_posts() -> list:
     return [fetch_blog_post(url) for url in urls]
 ```
 
+
 ### Improving Content Extraction
 
 The scraper uses multiple fallback strategies for extracting content. You can enhance it by:
@@ -158,10 +173,41 @@ The scraper uses multiple fallback strategies for extracting content. You can en
 
 ```bash
 # Test scraper only
-uv run python -c "from scraper import fetch_blog_posts; posts = fetch_blog_posts(); print(f'Found {len(posts)} posts')"
+uv run python -c "from src.v2_ai_mcp.scraper import fetch_blog_posts; posts = fetch_blog_posts(); print(f'Found {len(posts)} posts')"
+
+# Run full test suite
+uv run pytest tests/ -v --cov=src
 
 # Test MCP server startup
-uv run python main.py
+uv run python -m src.v2_ai_mcp.main
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html
+
+# Run specific test file
+uv run pytest tests/test_scraper.py -v
+```
+
+### Code Quality
+
+```bash
+# Format code
+uv run ruff format src tests
+
+# Lint code
+uv run ruff check src tests
+
+# Fix auto-fixable issues
+uv run ruff check --fix src tests
 ```
 
 ## License
