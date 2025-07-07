@@ -1,20 +1,22 @@
 # V2.ai Insights Scraper MCP
 
-A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insights, extracts content, and provides AI-powered summaries using OpenAI's GPT-4.
+A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insights, extracts content, and provides AI-powered summaries using OpenAI's GPT-4. **Currently supports Contentful CMS integration with search capabilities.**
 
-# Example
-![alt text](image.png)
+> 📋 **Strategic Vision**: This project is evolving into a comprehensive AI intelligence platform. See [STRATEGIC_VISION.md](./STRATEGIC_VISION.md) for the complete roadmap from content API to strategic intelligence platform.
 
 ## Features
 
-- 🔍 **Web Scraping**: Fetches blog posts from V2.ai Insights
-- 📝 **Content Extraction**: Extracts title, date, author, and content
+- 🔍 **Multi-Source Content**: Fetches from Contentful CMS and V2.ai web scraping
+- 📝 **Content Extraction**: Extracts title, date, author, and content with intelligent fallbacks
+- 🔎 **Full-Text Search**: Search across all blog content with Contentful's search API
 - 🤖 **AI Summarization**: Generates summaries using OpenAI GPT-4
 - 🔧 **MCP Integration**: Exposes tools for Claude Desktop integration
 
 ## Tools Available
 
-- `get_latest_posts()` - Retrieves blog posts with metadata
+- `get_latest_posts()` - Retrieves blog posts with metadata (Contentful + V2.ai fallback)
+- `get_contentful_posts(limit)` - Fetch posts directly from Contentful CMS
+- `search_blogs(query, limit)` - **NEW** - Search across all blog content
 - `summarize_post(index)` - Returns AI-generated summary of a specific post
 - `get_post_content(index)` - Returns full content of a specific post
 
@@ -25,6 +27,7 @@ A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insight
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) package manager
 - OpenAI API key
+- Contentful CMS credentials (optional, for enhanced functionality)
 
 ### Installation
 
@@ -38,14 +41,22 @@ A Model Context Protocol (MCP) server that scrapes blog posts from V2.ai Insight
    uv add fastmcp beautifulsoup4 requests openai
    ```
 
-3. **Set up OpenAI API key:**
+3. **Set up environment variables:**
+
+   Create a `.env` file based on `.env.example`:
    ```bash
-   export OPENAI_API_KEY="your-api-key-here"
+   cp .env.example .env
    ```
 
-   Or create a `.env` file:
-   ```
-   OPENAI_API_KEY=your-api-key-here
+   Edit `.env` with your credentials:
+   ```env
+   # Required
+   OPENAI_API_KEY=your-openai-api-key-here
+
+   # Optional (for Contentful integration)
+   CONTENTFUL_SPACE_ID=your-contentful-space-id
+   CONTENTFUL_ACCESS_TOKEN=your-contentful-access-token
+   CONTENTFUL_CONTENT_TYPE=pageBlogPost
    ```
 
 ### Running the Server
@@ -88,9 +99,9 @@ uv run pytest tests/ -v --cov=src
          "args": ["run", "--directory", "/path/to/your/v2-ai-mcp", "python", "-m", "src.v2_ai_mcp.main"],
          "env": {
            "OPENAI_API_KEY": "your-api-key-here",
-           "CONTENTFUL_SPACE_ID": "nea6p9w6oir5",
-          "CONTENTFUL_ACCESS_TOKEN": "<get it from ash>",
-          "CONTENTFUL_CONTENT_TYPE": "pageBlogPost"
+           "CONTENTFUL_SPACE_ID": "your-contentful-space-id",
+           "CONTENTFUL_ACCESS_TOKEN": "your-contentful-access-token",
+           "CONTENTFUL_CONTENT_TYPE": "pageBlogPost"
          }
        }
      }
@@ -103,9 +114,24 @@ uv run pytest tests/ -v --cov=src
 
 Once configured, you can use these tools in Claude Desktop:
 
-- **Get latest posts**: `get_latest_posts()`
+- **Get latest posts**: `get_latest_posts()` (intelligent Contentful + V2.ai fallback)
+- **Get Contentful posts**: `get_contentful_posts(10)` (direct CMS access)
+- **Search blogs**: `search_blogs("AI automation", 5)` (**NEW** - full-text search)
 - **Summarize post**: `summarize_post(0)` (index 0 for first post)
 - **Get full content**: `get_post_content(0)`
+
+### Example Usage
+
+```
+🔍 Search for AI-related content:
+search_blogs("artificial intelligence", 3)
+
+📚 Get latest posts with automatic source selection:
+get_latest_posts()
+
+🤖 Get AI summary of specific post:
+summarize_post(0)
+```
 
 ## Project Structure
 
