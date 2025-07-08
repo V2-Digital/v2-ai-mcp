@@ -1,10 +1,10 @@
-"""Contentful CMS integration for fetching blog posts."""
+"""Contentful CMS integration for fetching blog posts via GraphQL."""
 
 import logging
 import os
 from typing import Any
 
-import contentful
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -18,36 +18,42 @@ class ContentfulClient:
         access_token: str | None = None,
         environment: str = "master",
     ):
-        """Initialize Contentful client.
+        """Initialize Contentful GraphQL client.
 
         Args:
             space_id: Contentful space ID (or from CONTENTFUL_SPACE_ID env var)
-            access_token: Contentful access token (or from CONTENTFUL_ACCESS_TOKEN env var)
+            access_token: Contentful access token (or from CONTENTFUL_ACCESS_TOKEN env var) - required for GraphQL API
             environment: Contentful environment (default: master)
         """
         self.space_id = space_id or os.getenv("CONTENTFUL_SPACE_ID")
         self.access_token = access_token or os.getenv("CONTENTFUL_ACCESS_TOKEN")
         self.environment = environment
 
-        if not self.space_id or not self.access_token:
+        if not self.space_id:
             raise ValueError(
-                "Contentful space_id and access_token are required. "
-                "Set CONTENTFUL_SPACE_ID and CONTENTFUL_ACCESS_TOKEN environment variables."
+                "Contentful space_id is required. "
+                "Set CONTENTFUL_SPACE_ID environment variable."
             )
 
-        self.client = contentful.Client(
-            space_id=self.space_id,
-            access_token=self.access_token,
-            environment=self.environment,
-        )
+        if not self.access_token:
+            raise ValueError(
+                "Contentful access_token is required for GraphQL API. "
+                "Set CONTENTFUL_ACCESS_TOKEN environment variable."
+            )
+
+        self.graphql_url = f"https://graphql.contentful.com/content/v1/spaces/{self.space_id}/environments/{self.environment}"
+        self.headers = {"Content-Type": "application/json"}
+
+        # Add authorization header (required for GraphQL API)
+        self.headers["Authorization"] = f"Bearer {self.access_token}"
 
     def fetch_blog_posts(
         self,
-        content_type: str = "blogPost",
+        content_type: str = "pageBlogPost",
         limit: int = 10,
-        order: str = "-sys.createdAt",
+        order: str = "sys_publishedAt_DESC",
     ) -> list[dict[str, Any]]:
-        """Fetch blog posts from Contentful.
+        """Fetch blog posts from Contentful via GraphQL.
 
         Args:
             content_type: Content type ID for blog posts
@@ -57,56 +63,222 @@ class ContentfulClient:
         Returns:
             List of blog post dictionaries
         """
+        query = f"""
+        query {{
+            {content_type}Collection(limit: {limit}, order: {order}) {{
+                items {{
+                    sys {{
+                        id
+                        publishedAt
+                    }}
+                    title
+                    slug
+                    content {{
+                        json
+                    }}
+                    author {{
+                        name
+                    }}
+                    publishedDate
+                }}
+            }}
+        }}
+        """
+
         try:
-            entries = self.client.entries(
-                {
-                    "content_type": content_type,
-                    "limit": limit,
-                    "order": order,
-                }
+            response = requests.post(
+                self.graphql_url,
+                headers=self.headers,
+                json={"query": query},
+                timeout=30,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "errors" in data:
+                logger.error(f"GraphQL errors: {data['errors']}")
+                return self._error_response(f"GraphQL errors: {data['errors']}")
+
+            items = (
+                data.get("data", {})
+                .get(f"{content_type}Collection", {})
+                .get("items", [])
             )
 
             posts = []
-            for entry in entries:
-                post_data = self._extract_post_data(entry)
+            for item in items:
+                post_data = self._extract_graphql_post_data(item)
                 if post_data:
                     posts.append(post_data)
 
             return posts
 
         except Exception as e:
-            return [
-                {
-                    "title": "Error fetching from Contentful",
-                    "date": "",
-                    "author": "",
-                    "content": f"Error: {str(e)}",
-                    "url": "",
-                    "id": "",
-                }
-            ]
+            logger.error(f"Error fetching from Contentful GraphQL: {e}")
+            return self._error_response(f"Error: {str(e)}")
 
-    def fetch_single_post(self, entry_id: str) -> dict[str, Any]:
-        """Fetch a single blog post by entry ID.
-
-        Args:
-            entry_id: Contentful entry ID
-
-        Returns:
-            Blog post dictionary
-        """
-        try:
-            entry = self.client.entry(entry_id)
-            return self._extract_post_data(entry) or {
-                "title": "Post not found",
+    def _error_response(self, error_message: str) -> list[dict[str, Any]]:
+        """Create a standardized error response."""
+        return [
+            {
+                "title": "Error fetching from Contentful",
                 "date": "",
                 "author": "",
-                "content": "Post data could not be extracted",
+                "content": error_message,
                 "url": "",
+                "id": "",
+            }
+        ]
+
+    def _extract_graphql_post_data(self, item: dict[str, Any]) -> dict[str, Any] | None:
+        """Extract blog post data from GraphQL response item."""
+        try:
+            # Extract basic fields
+            title = item.get("title", "No title")
+            slug = item.get("slug", "")
+
+            # Extract content from rich text JSON
+            content_json = item.get("content", {}).get("json", {})
+            content = (
+                self._extract_content_from_json(content_json)
+                if content_json
+                else "No content available"
+            )
+
+            # Extract author
+            author_data = item.get("author", {})
+            author = (
+                author_data.get("name", "Unknown Author")
+                if author_data
+                else "Unknown Author"
+            )
+
+            # Extract date
+            publish_date = item.get("publishedDate") or item.get("sys", {}).get(
+                "publishedAt", ""
+            )
+
+            # Build URL
+            url = f"https://v2.ai/insights/{slug}" if slug else ""
+
+            # Get ID
+            entry_id = item.get("sys", {}).get("id", "")
+
+            return {
+                "title": str(title),
+                "date": str(publish_date),
+                "author": str(author),
+                "content": content,
+                "url": url,
                 "id": entry_id,
             }
 
         except Exception as e:
+            logger.error(f"Error extracting GraphQL post data: {e}")
+            return None
+
+    def _extract_content_from_json(self, content_json: dict[str, Any]) -> str:
+        """Extract plain text content from Contentful rich text JSON."""
+        try:
+
+            def extract_text_from_node(node):
+                if isinstance(node, dict):
+                    if node.get("nodeType") == "text":
+                        return node.get("value", "")
+                    elif "content" in node:
+                        return " ".join(
+                            extract_text_from_node(child) for child in node["content"]
+                        )
+                elif isinstance(node, list):
+                    return " ".join(extract_text_from_node(child) for child in node)
+                return ""
+
+            if content_json and "content" in content_json:
+                result = extract_text_from_node(content_json["content"])
+                return str(result) if result else ""
+            return ""
+
+        except Exception as e:
+            logger.error(f"Error extracting content from JSON: {e}")
+            return ""
+
+    def fetch_single_post(
+        self, entry_id: str, content_type: str = "pageBlogPost"
+    ) -> dict[str, Any]:
+        """Fetch a single blog post by entry ID via GraphQL.
+
+        Args:
+            entry_id: Contentful entry ID
+            content_type: Content type ID for blog posts
+
+        Returns:
+            Blog post dictionary
+        """
+        query = f"""
+        query {{
+            {content_type}(id: "{entry_id}") {{
+                sys {{
+                    id
+                    publishedAt
+                }}
+                title
+                slug
+                content {{
+                    json
+                }}
+                author {{
+                    name
+                }}
+                publishedDate
+            }}
+        }}
+        """
+
+        try:
+            response = requests.post(
+                self.graphql_url,
+                headers=self.headers,
+                json={"query": query},
+                timeout=30,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "errors" in data:
+                logger.error(f"GraphQL errors: {data['errors']}")
+                return {
+                    "title": "Error fetching post",
+                    "date": "",
+                    "author": "",
+                    "content": f"GraphQL errors: {data['errors']}",
+                    "url": "",
+                    "id": entry_id,
+                }
+
+            item = data.get("data", {}).get(content_type)
+            if item:
+                return self._extract_graphql_post_data(item) or {
+                    "title": "Post not found",
+                    "date": "",
+                    "author": "",
+                    "content": "Post data could not be extracted",
+                    "url": "",
+                    "id": entry_id,
+                }
+            else:
+                return {
+                    "title": "Post not found",
+                    "date": "",
+                    "author": "",
+                    "content": "Post not found in Contentful",
+                    "url": "",
+                    "id": entry_id,
+                }
+
+        except Exception as e:
+            logger.error(f"Error fetching single post: {e}")
             return {
                 "title": "Error fetching post",
                 "date": "",
@@ -116,181 +288,122 @@ class ContentfulClient:
                 "id": entry_id,
             }
 
-    def _extract_post_data(self, entry: Any) -> dict[str, Any] | None:
-        """Extract blog post data from Contentful entry.
-
-        Args:
-            entry: Contentful entry object
-
-        Returns:
-            Extracted post data or None if extraction fails
-        """
-        try:
-            fields = entry.fields()
-
-            # Common field mappings - adjust based on your content model
-            title = fields.get("title", "No title")
-            content = fields.get("content", fields.get("body", "No content"))
-
-            # Handle linked author entries
-            author = self._extract_author(fields)
-
-            # Handle date fields
-            date = self._extract_date(fields, entry)
-
-            if not date and hasattr(entry, "sys"):
-                date = entry.sys.get("createdAt", "")
-
-            # Handle slug/URL
-            slug = fields.get("slug", "")
-            url = f"https://your-site.com/{slug}" if slug else ""
-
-            # Handle rich text content
-            if hasattr(content, "content"):
-                content = self._extract_rich_text(content)
-            elif not isinstance(content, str):
-                content = str(content)
-
-            return {
-                "title": str(title),
-                "date": str(date),
-                "author": str(author),
-                "content": content,
-                "url": url,
-                "id": entry.sys.get("id", ""),
-            }
-
-        except Exception as e:
-            print(f"Error extracting post data: {e}")
-            return None
-
-    def _extract_rich_text(self, rich_text: Any) -> str:
-        """Extract plain text from Contentful rich text field.
-
-        Args:
-            rich_text: Rich text content object
-
-        Returns:
-            Plain text string
-        """
-        try:
-            if hasattr(rich_text, "content") and isinstance(rich_text.content, list):
-                text_parts = []
-                for node in rich_text.content:
-                    if hasattr(node, "content") and isinstance(node.content, list):
-                        for text_node in node.content:
-                            if hasattr(text_node, "value"):
-                                text_parts.append(text_node.value)
-                return "\n\n".join(text_parts)
-            return str(rich_text)
-        except Exception:
-            return str(rich_text)
-
-    def _extract_author(self, fields: dict[str, Any]) -> str:
-        """Extract author name from various field types.
-
-        Args:
-            fields: Entry fields dictionary
-
-        Returns:
-            Author name string
-        """
-        # Try different author field names
-        author_fields = ["author", "authorName", "writer", "createdBy"]
-
-        for field_name in author_fields:
-            if field_name in fields:
-                author_value = fields[field_name]
-
-                # Handle linked author entries
-                if hasattr(author_value, "fields"):
-                    try:
-                        author_fields_data = author_value.fields()
-                        # Try common name fields in author entries
-                        name = (
-                            author_fields_data.get("name")
-                            or author_fields_data.get("fullName")
-                            or author_fields_data.get("displayName")
-                            or author_fields_data.get("title")
-                            or "Unknown Author"
-                        )
-                        return str(name)
-                    except Exception as e:
-                        logger.debug(
-                            "Failed to extract author from linked entry: %s", e
-                        )
-                        continue
-
-                # Handle list of authors
-                elif isinstance(author_value, list) and author_value:
-                    first_author = author_value[0]
-                    if hasattr(first_author, "fields"):
-                        try:
-                            author_fields_data = first_author.fields()
-                            name = (
-                                author_fields_data.get("name")
-                                or author_fields_data.get("fullName")
-                                or author_fields_data.get("displayName")
-                                or author_fields_data.get("title")
-                                or "Unknown Author"
-                            )
-                            return str(name)
-                        except Exception as e:
-                            logger.debug(
-                                "Failed to extract author from list entry: %s", e
-                            )
-                            continue
-                    else:
-                        return str(first_author)
-
-                # Handle direct string values
-                elif isinstance(author_value, str):
-                    return author_value
-
-                # Handle other types
-                else:
-                    return str(author_value)
-
-        return "Unknown Author"
-
     def search_blog_posts(
         self,
         query: str,
-        content_type: str = "blogPost",
+        content_type: str = "pageBlogPost",
         limit: int = 10,
-        order: str = "-sys.createdAt",
+        order: str = "sys_publishedAt_DESC",
+        search_fields: list[str] | None = None,
+        author_filter: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Search blog posts from Contentful using text query.
+        """Search blog posts from Contentful using advanced GraphQL filters.
 
         Args:
             query: Search query string
             content_type: Content type ID for blog posts
             limit: Maximum number of posts to return
             order: Sort order (default: newest first)
+            search_fields: Fields to search in (default: ['title'])
+            author_filter: Filter by author name (optional)
 
         Returns:
             List of matching blog post dictionaries
         """
+        # Build where clause with advanced filters
+        where_conditions = []
+
+        # Default search fields if none specified
+        if search_fields is None:
+            search_fields = ["title"]
+
+        # Add field-based search conditions
+        field_conditions = []
+        for field in search_fields:
+            field_conditions.append(f'{field}_contains: "{query}"')
+
+        # If multiple fields, use OR logic (we'll use separate queries for now)
+        # For simplicity, we'll search title first, but this can be enhanced
+        if "title" in search_fields:
+            where_conditions.append(f'title_contains: "{query}"')
+
+        # Add author filter if specified
+        if author_filter:
+            where_conditions.append(f'author: {{ name_contains: "{author_filter}" }}')
+
+        # Build the where clause
+        where_clause = (
+            ", ".join(where_conditions) if where_conditions else 'title_contains: ""'
+        )
+
+        graphql_query = f"""
+        query {{
+            {content_type}Collection(
+                limit: {limit},
+                order: {order},
+                where: {{
+                    {where_clause}
+                }}
+            ) {{
+                items {{
+                    sys {{
+                        id
+                        publishedAt
+                    }}
+                    title
+                    slug
+                    content {{
+                        json
+                    }}
+                    author {{
+                        name
+                    }}
+                    publishedDate
+                }}
+            }}
+        }}
+        """
+
         try:
-            # Use Contentful's full-text search API
-            entries = self.client.entries(
-                {
-                    "content_type": content_type,
-                    "query": query,  # Full-text search across all fields
-                    "limit": limit,
-                    "order": order,
-                }
+            response = requests.post(
+                self.graphql_url,
+                headers=self.headers,
+                json={"query": graphql_query},
+                timeout=30,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "errors" in data:
+                logger.error(f"GraphQL search errors: {data['errors']}")
+                return [
+                    {
+                        "title": f"Error searching Contentful for '{query}'",
+                        "date": "",
+                        "author": "",
+                        "content": f"Search error: {data['errors']}",
+                        "url": "",
+                        "id": "",
+                    }
+                ]
+
+            items = (
+                data.get("data", {})
+                .get(f"{content_type}Collection", {})
+                .get("items", [])
             )
 
             posts = []
-            for entry in entries:
-                post_data = self._extract_post_data(entry)
+            for item in items:
+                post_data = self._extract_graphql_post_data(item)
                 if post_data:
                     posts.append(post_data)
 
             return posts
 
         except Exception as e:
+            logger.error(f"Error searching Contentful GraphQL: {e}")
             return [
                 {
                     "title": f"Error searching Contentful for '{query}'",
@@ -302,59 +415,147 @@ class ContentfulClient:
                 }
             ]
 
-    def _extract_date(self, fields: dict[str, Any], entry: Any) -> str:
-        """Extract publication date from various field types.
+    def advanced_search_blog_posts(
+        self,
+        query: str,
+        content_type: str = "pageBlogPost",
+        limit: int = 10,
+        order: str = "sys_publishedAt_DESC",
+        **filters,
+    ) -> list[dict[str, Any]]:
+        """Advanced search with multiple filter options.
 
         Args:
-            fields: Entry fields dictionary
-            entry: Full entry object
+            query: Main search query
+            content_type: Content type ID
+            limit: Maximum results
+            order: Sort order
+            **filters: Additional filters like author_name, title_exact, etc.
 
         Returns:
-            Date string
+            List of matching blog post dictionaries
         """
-        # Try different date field names
-        date_fields = [
-            "publishDate",
-            "publicationDate",
-            "publishedAt",
-            "published",
-            "date",
-            "createdDate",
-            "dateCreated",
-            "createdAt",
-        ]
+        where_conditions = []
 
-        for field_name in date_fields:
-            if field_name in fields:
-                date_value = fields[field_name]
+        # Main search query - search in title by default
+        if query:
+            where_conditions.append(f'title_contains: "{query}"')
 
-                # Handle datetime objects
-                if hasattr(date_value, "isoformat"):
-                    return str(date_value.isoformat())
+        # Handle additional filters
+        for filter_key, filter_value in filters.items():
+            if not filter_value:
+                continue
 
-                # Handle string dates
-                elif isinstance(date_value, str) and date_value:
-                    return date_value
+            if filter_key == "author_name":
+                where_conditions.append(
+                    f'author: {{ name_contains: "{filter_value}" }}'
+                )
+            elif filter_key == "title_exact":
+                where_conditions.append(f'title: "{filter_value}"')
+            elif filter_key == "title_in":
+                if isinstance(filter_value, list):
+                    title_list = ", ".join([f'"{t}"' for t in filter_value])
+                    where_conditions.append(f"title_in: [{title_list}]")
+            elif filter_key == "author_exists":
+                where_conditions.append(f"author_exists: {str(filter_value).lower()}")
+            elif filter_key == "published_after":
+                where_conditions.append(f'publishedDate_gte: "{filter_value}"')
+            elif filter_key == "published_before":
+                where_conditions.append(f'publishedDate_lte: "{filter_value}"')
 
-                # Handle other types
-                elif date_value:
-                    return str(date_value)
+        # Build where clause
+        where_clause = (
+            ", ".join(where_conditions) if where_conditions else "title_exists: true"
+        )
 
-        # Fallback to system creation date
-        if hasattr(entry, "sys") and "createdAt" in entry.sys:
-            return str(entry.sys["createdAt"])
+        graphql_query = f"""
+        query {{
+            {content_type}Collection(
+                limit: {limit},
+                order: {order},
+                where: {{
+                    {where_clause}
+                }}
+            ) {{
+                items {{
+                    sys {{
+                        id
+                        publishedAt
+                    }}
+                    title
+                    slug
+                    content {{
+                        json
+                    }}
+                    author {{
+                        name
+                    }}
+                    publishedDate
+                }}
+            }}
+        }}
+        """
 
-        return "No date available"
+        try:
+            response = requests.post(
+                self.graphql_url,
+                headers=self.headers,
+                json={"query": graphql_query},
+                timeout=30,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "errors" in data:
+                logger.error(f"GraphQL advanced search errors: {data['errors']}")
+                return [
+                    {
+                        "title": f"Error in advanced search for '{query}'",
+                        "date": "",
+                        "author": "",
+                        "content": f"Search error: {data['errors']}",
+                        "url": "",
+                        "id": "",
+                    }
+                ]
+
+            items = (
+                data.get("data", {})
+                .get(f"{content_type}Collection", {})
+                .get("items", [])
+            )
+
+            posts = []
+            for item in items:
+                post_data = self._extract_graphql_post_data(item)
+                if post_data:
+                    posts.append(post_data)
+
+            return posts
+
+        except Exception as e:
+            logger.error(f"Error in advanced search: {e}")
+            return [
+                {
+                    "title": f"Error in advanced search for '{query}'",
+                    "date": "",
+                    "author": "",
+                    "content": f"Search error: {str(e)}",
+                    "url": "",
+                    "id": "",
+                }
+            ]
 
 
 # Convenience function for easy usage
 def fetch_contentful_posts(
     space_id: str | None = None,
     access_token: str | None = None,
-    content_type: str = "blogPost",
+    content_type: str = "pageBlogPost",
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """Convenience function to fetch blog posts from Contentful.
+    """Convenience function to fetch blog posts from Contentful via GraphQL.
 
     Args:
         space_id: Contentful space ID
